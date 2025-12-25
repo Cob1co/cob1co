@@ -1,0 +1,54 @@
+project:
+  year: 2023  # 数据年份，仅用于记录
+  time_step_h: 1  # 时间步长（小时）
+
+data:
+  # 天气+负荷+电价数据文件（相对于项目根目录的路径）
+  weather_load_price_csv: data/data2023.csv  # 列: Time,Temperature_C,Solar_W_m2,Wind_Speed_m_s,Load_kW,Price_CNY_kWh
+
+scenarios:
+  k_typical: 5      # 典型日数量
+  random_state: 0   # 聚类随机种子
+
+capacity_bounds:
+  # 各设备容量上下界（可以根据工程经验修改）
+  wind_mw:
+    min: 0.0
+    max: 50.0
+  pv_mw:
+    min: 0.0
+    max: 100.0
+  ts_mwh:
+    min: 0.0
+    max: 200.0
+  eh_mw_th:
+    min: 0.0
+    max: 80.0
+  st_mw_e:
+    min: 0.0
+    max: 30.0
+
+objective_weights:
+  # 三个目标的权重：经济性、可靠性（缺电）、弃风弃光
+  econ: 3.0          # 经济性权重（优先考虑）
+  reliability: 1.0   # 可靠性权重
+  curtailment: 0.5   # 弃风权重（相对较低）
+
+penalties:
+  # 缺电和弃风的罚则单价（元/MWh），可根据需求调整
+  # 参数说明.md 中 penalty_unserved = 2.5 元/kWh，这里按 1000 倍换算为 元/MWh
+  unserved_cny_per_mwh: 2500.0
+  curtail_cny_per_mwh: 200.0
+
+operation:
+  grid_import_limit_mw: 30.0  # 默认视为孤岛运行，如需允许从大电网购电，请在此修改上限
+  initial_soc: 0.5           # 熔盐储能初始SOC
+
+optimizer:
+  method: "pso"     # 当前实现为带边际效益修正的PSO
+  n_particles: 20    # 粒子数
+  max_iter: 50       # 最大迭代次数
+  inertia_w: 0.7     # 惯性权重 w
+  c1: 1.4            # 个体学习因子
+  c2: 1.4            # 群体学习因子
+  alpha_mu: 0.3      # 边际效益项系数（越大代表越“贪婪”）

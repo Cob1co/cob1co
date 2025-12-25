@@ -1,0 +1,70 @@
+project:
+  # 默认时间步长（小时），仅供设备模型参考
+  time_step_h: 1
+
+physics:
+  molten_salt:
+    # 熔盐物性参数（参考 参数说明.md）
+    T_cold_c: 290        # 冷罐典型温度
+    T_hot_c: 565         # 热罐典型温度
+    cp_kj_per_kgK: 1.5   # 比热容
+    rho_kg_per_m3: 1800  # 密度
+    soc_min: 0.1         # SOC 下限
+    soc_max: 0.9         # SOC 上限
+    loss_rate_per_h: 0.005  # 自放电/热损率
+
+assets:
+  wind:
+    capacity_mw: 200
+    v_in_mps: 3.0        # 切入风速
+    v_rated_mps: 12.0    # 额定风速
+    v_out_mps: 25.0      # 切出风速
+
+  pv:
+    capacity_mw: 200
+    ghi_ref_w_per_m2: 1000
+    temp_coeff_per_c: -0.004
+    t_ref_c: 25
+
+  thermal_storage:
+    # 对应 DualTankThermalStorage 的总热容量等
+    total_energy_cap_mwh: 800
+    loss_rate_per_h: 0.005
+    init_soc_total: 0.1      # 初始总 SOC
+    init_hot_share: 0.5      # 初始热罐能量占比
+
+  electric_heater:
+    cap_mw_th: 200
+    eta: 0.98
+
+  steam_turbine:
+    cap_mw_e: 200
+    eta: 0.4
+    ramp_mw_per_h: 20.0
+    p_min_frac: 0.3          # 最小技术出力占比（预留，将来可在模型中使用）
+
+economics:
+  lifetime_years: 20
+  discount_rate: 0.08
+
+  # 经济性参数基于 参数说明.md 中 ECON_PARAMS，注意单位换算：
+  # - cost_xxx_per_kw (元/kW) -> 乘以 1000 变为 元/MW
+  # - cost_storage_energy (元/kWh-th) -> 乘以 1000 变为 元/MWh-th
+  capex:
+    wind_cny_per_mw: 3800000        # 5.8e3 元/kW * 1000
+    pv_cny_per_mw: 2800000          # 2.8e3 元/kW * 1000
+    thermal_storage_energy_cny_per_mwh: 220000  # 220 元/kWh-th * 1000
+    electric_heater_cny_per_mw_th: 650000       # 650 元/kW * 1000
+    steam_turbine_cny_per_mw_e: 3500000         # 3.5e3 元/kW * 1000
+
+  # 运维成本按照 ECON_PARAMS 中的 opex_rate_* 统一配置
+  opex_rate:
+    wind_frac_per_year: 0.025
+    pv_frac_per_year: 0.015
+    thermal_storage_frac_per_year: 0.02
+    electric_heater_frac_per_year: 0.02
+    steam_turbine_frac_per_year: 0.02
+
+  carbon:
+    price_cny_per_t: 50
+    grid_emission_t_per_mwh: 0.8

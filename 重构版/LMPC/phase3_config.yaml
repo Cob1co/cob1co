@@ -1,0 +1,217 @@
+project:
+  name: "Phase 3 - Learning MPC with Transformer"
+  version: "1.0"
+  description: "Transformer动态权重控制 + MPC实时优化"
+
+# ==================== 数据路径 ====================
+data:
+  # 2023年历史数据（用于训练）
+  historical_2023: "data/data2023.csv"
+  
+  # 2024年实时数据（用于测试）
+  realtime_2024: "data/realtime2024.csv"
+  
+  # 预测数据（带误差）
+  forecast_2023_training: "data/forecast_2023_8h_training.pkl"
+  forecast_2024_testing: "data/forecast_2024_8h_testing.pkl"
+  
+  # 训练数据集
+  transformer_training_data: "data/transformer_training_data.pkl"
+
+# ==================== 模型路径 ====================
+models:
+  # Phase 2 专家模型
+  expert_models_dir: "SAC/models"
+  
+  # K-means聚类模型（天气分类）
+  kmeans_model: "SAC/kmeans_model.pkl"
+  
+  # Transformer权重控制器
+  transformer_weights: "LMPC/models/transformer_weights.pth"
+
+# ==================== 容量配置 ====================
+capacity:
+  wind_mw: 20.0
+  pv_mw: 35.0
+  ts_mwh: 200.0
+  eh_mw_th: 25.0
+  st_mw_e: 15.0
+
+# ==================== 物理参数 ====================
+physics:
+  # 储能效率
+  eta_heater: 0.98
+  eta_turbine: 0.40
+  loss_rate_per_h: 0.005
+  
+  # SOC约束
+  soc_min: 0.1
+  soc_max: 0.9
+  initial_soc: 0.5
+
+# ==================== 目标函数 ====================
+objective:
+  cost_scale: 10000.0
+  ramp_scale: 50.0
+  curtail_scale: 50.0
+  w_cost: 0.8
+  w_ramp: 1.0
+  w_curt: 0.6
+
+# ==================== 预测误差配置 ====================
+forecast_error:
+  # 误差随预测步长增加
+  load:
+    base_std: 0.05    # 基础误差5%
+    growth_rate: 0.10  # 每8小时增长10%
+  
+  pv:
+    base_std: 0.10    # 基础误差10%
+    growth_rate: 0.20  # 每8小时增长20%
+  
+  wind:
+    base_std: 0.15    # 基础误差15%
+    growth_rate: 0.20  # 每8小时增长20%
+  
+  # 预测窗口
+  horizon_hours: 8
+  horizon_steps: 32   # 8小时 × 4步/小时
+
+# ==================== MPC配置 ====================
+mpc:
+  time_step_minutes: 15
+  prediction_horizon: 32   # 8小时
+  control_horizon: 4       # 1小时
+  
+  # 基础权重
+  base_weights:
+    soc: 5.0
+    grid: 2.0
+    cost: 1.0
+    ramp: 1.0    # 固定权重
+    curtail: 2.0     # 固定权重
+    smooth: 1.0      # 固定权重
+  
+  # 动态权重范围
+  alpha_range:
+    min: 0.5
+    max: 2.0
+  
+  # CVXPY求解器
+  solver:
+    name: "OSQP"
+    verbose: false
+    max_iter: 4000
+    eps_abs: 1.0e-5
+    eps_rel: 1.0e-5
+
+# ==================== Transformer配置 ====================
+transformer:
+  # 网络架构
+  model:
+    state_dim: 12
+    d_model: 128
+    nhead: 8
+    num_layers: 4
+    dim_feedforward: 512
+    dropout: 0.1
+    seq_len: 24      # 6小时历史
+  
+  # 推理时低通滤波
+  smoothing:
+    enable: true
+    alpha: 0.3       # filtered = 0.3*raw + 0.7*prev
+  
+  # 训练配置
+  training:
+    # 数据收集
+    data_collection:
+      num_days: 30                    # 收集天数
+      candidates: [0.5, 1.0, 1.5]     # 网格搜索候选值
+      horizon_steps: 16                # H步前瞻（4小时）
+      discount_factor: 0.99
+      parallel_workers: 4
+    
+    # 特征提取
+    features:
+      forecast_error_window: 4  # 滚动窗口（1小时）
+      history_length: 24        # 历史长度（6小时）
+    
+    # 加权采样
+    sampling:
+      use_weighted: true
+      thresholds: [0.1, 0.3]
+      weights: [1.0, 3.0, 5.0]
+    
+    # 优化器
+    optimizer:
+      name: "AdamW"
+      lr: 0.00005
+      weight_decay: 0.00001
+      batch_size: 64
+      max_epochs: 500
+      patience: 200             # 早停
+    
+    # 学习率调度
+    scheduler:
+      name: "CosineAnnealingLR"
+      T_max: 200
+
+# ==================== 专家接口配置 ====================
+expert_interface:
+  # 专家切换平滑
+  switching:
+    smooth_transition: true
+    transition_window: 4      # 1小时平滑过渡
+  
+  # 天气分类
+  weather_classification:
+    update_interval_hours: 3  # 每3小时更新
+    history_hours: 24         # 用过去24小时分类
+    num_clusters: 5           # 5个专家
+
+# ==================== 实时运行配置 ====================
+realtime:
+  # 控制周期
+  control_period_minutes: 15
+  
+  # 测试时长
+  test_days: 7
+  
+  # 日志
+  log_frequency: 4           # 每1小时记录一次
+  save_results: true
+  results_dir: "LMPC/logs/realtime_results"
+
+# ==================== 评估指标 ====================
+evaluation:
+  metrics:
+    - operating_cost
+    - soc_tracking_rmse
+    - grid_tracking_rmse
+    - constraint_violation_rate
+    - mpc_solve_success_rate
+    - transformer_inference_time
+    - weight_change_std
+  
+  baselines:
+    - fixed_weights      # α=1.0
+    - rule_based         # if-else规则
+    - expert_only        # 直接用专家策略
+  period:
+    mode: "range"
+    start: "2024-03-01"
+    end: "2024-03-31"
+
+# ==================== 可视化配置 ====================
+visualization:
+  plot_frequency: 96         # 每天绘制一次
+  save_figures: true
+  figures_dir: "LMPC/logs/figures"
+  
+  plots:
+    - dynamic_weights_history
+    - soc_tracking
+    - grid_power_tracking
+    - forecast_error_impact
+    - expert_switching_events

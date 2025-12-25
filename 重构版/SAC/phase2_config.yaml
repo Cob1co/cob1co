@@ -1,0 +1,54 @@
+capacity:
+  eh_mw_th: 25.0
+  pv_mw: 35.0
+  st_mw_e: 15.0
+  ts_mwh: 200.0
+  wind_mw: 20.0
+data:
+  clustered: clustered_training_data.csv
+  source: data/data2023.csv
+environment:
+  action_description: null
+  action_dim: 1
+  dt_hours: 1.0
+  episode_days: 4
+  initial_soc: 0.5
+  soc_max: 0.9
+  soc_min: 0.1
+  state_description: null
+  state_dim: 6
+evaluation:
+  eval_deterministic: true
+  eval_episodes: 10
+objective:
+  cost_scale: 10000.0
+  ramp_scale: 50.0
+  curtail_scale: 50.0
+  w_cost: 0.8
+  w_ramp: 1.0
+  w_curt: 0.6
+sac:
+  alpha_init: 0.2
+  auto_alpha: true
+  batch_size: 256
+  buffer_size: 100000
+  eval_frequency: 20
+  gamma: 0.99
+  hidden_dim: 256
+  lr_actor: 0.0003
+  lr_alpha: 0.0003
+  lr_critic: 0.0003
+  max_episodes: 1000
+  save_frequency: 50
+  target_entropy: -1.0
+  tau: 0.005
+  update_frequency: 1
+  warmup_steps: 1000
+training:
+  log_dir: logs
+  model_dir: models
+  num_experts: 5
+  num_workers: 5
+  parallel: false
+  random_seed: 42
+  use_gpu: true
